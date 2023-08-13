@@ -15,16 +15,13 @@ class CaixaDaLanchonete {
 		this.paymentMethods = ["dinheiro", "debito", "credito"];
 	}
 
-	calcularValorDaCompra(metodoDePagamento, itens) {
-		const strItensSplited = itens.map((item) => item.split(','));
-		const foodCodigos = this.menu.map((product) => product.code);
-		
-		const validItem = strItensSplited.every((item) =>
-			foodCodigos.includes(item[0])
+	validarCompra(itens, metodoDePagamento) {
+		const validItem = itens.every((item) =>
+			this.menu.find((product) => product.code === item[0])
 		);
 
-		const invalidAmount = strItensSplited.some((item) => item[1] === "0");
-
+		const invalidAmount = itens.some((item) => item[1] === "0");
+		
 		if (!this.paymentMethods.includes(metodoDePagamento)) {
 			return "Forma de pagamento inválida!";
 		} else if (itens.length === 0) {
@@ -34,16 +31,20 @@ class CaixaDaLanchonete {
 		} else if (!validItem) {
 			return "Item inválido!";
 		}
+	};
+	
+	validarExtras(extraProducts, itens) {
+		const itensCodes = itens.map((item) => item[0]);
+		const validExtra = extraProducts.every((product) =>
+			itensCodes.includes(product.principal)
+		);
+	
+		if (!validExtra) {
+			return "Item extra não pode ser pedido sem o principal";
+		}
+	};
 
-		const priceProducts = strItensSplited
-			.map((item) => {
-				const product = this.menu.find((product) => product.code === item[0])
-				const price = product.getValue() * item[1]
-				return price
-			})
-		
-		const totalPrice = priceProducts.reduce((acc, curr) => acc + curr, 0);
-		
+	calcularPagamento(metodoDePagamento, totalPrice) {
 		let result;
 
 		switch (metodoDePagamento) {
@@ -59,6 +60,27 @@ class CaixaDaLanchonete {
 				result = `R$ ${totalPrice.toFixed(2)}`
 				return result.replace(".", ",");
 		}
+	}
+	
+	calcularValorDaCompra(metodoDePagamento, itens) {
+		const strItensSplited = itens.map((item) => item.split(','));
+		
+		const invalid = this.validarCompra(strItensSplited, metodoDePagamento);
+		if (invalid) return invalid;
+
+		const products = strItensSplited.map((item) => this.menu.find((product) => product.code === item[0]));
+		const extraProducts = products.filter((product) => product.principal);
+		const productsPrice = products.map((product) => { 
+			const item = strItensSplited.find((item) => item[0] === product.code);
+			const price = product.getValue() * item[1]
+			return price;
+		})
+		const totalPrice = productsPrice.reduce((acc, curr) => acc + curr, 0);
+		
+		const invalidExtras = this.validarExtras(extraProducts, strItensSplited);
+		if (invalidExtras) return invalidExtras;
+		
+		return this.calcularPagamento(metodoDePagamento, totalPrice);
 	}
 }
 
